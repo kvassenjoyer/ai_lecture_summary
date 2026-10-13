@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f2ea">
+  <title>Лекториум. Автоматические конспекты</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-title"><h2>История</h2><button class="icon-button" id="refresh-history" title="Обновить список" aria-label="Обновить список лекций">↻</button></div>
+      <p class="history-empty" id="history-empty">Здесь появятся ваши лекции.<br>Начните с первой записи</p>
+      <ul id="history" class="history" aria-label="Список лекций"></ul>
+    </aside>
+    <section class="workspace">
+      <div class="intro"><span class="eyebrow">Переписывать меньше. Понимать больше</span><h1>Лекториум. Помогаю конспектировать</h1><p>Загрузите запись или добавьте ссылку на YouTube - получите расшифровку и структурированный конспект</p></div>
+      <section class="upload-card" aria-label="Загрузка записи">
+        <form id="upload-form">
+          <div class="source-tabs" role="tablist" aria-label="Источник записи"><button id="source-file-tab" type="button" role="tab" aria-selected="true" aria-controls="file-source" data-source="file" tabindex="0">Аудиофайл</button><button id="source-youtube-tab" type="button" role="tab" aria-selected="false" aria-controls="youtube-source" data-source="youtube" tabindex="-1">Ссылка YouTube</button></div>
+          <div id="file-source" role="tabpanel" aria-labelledby="source-file-tab">
+          <label class="dropzone" id="dropzone" for="audio-file">
+            <input id="audio-file" type="file" accept="audio/*,video/mp4,video/webm,.wav,.mp3,.m4a,.aac,.ogg,.flac,.opus,.mp4,.webm" required>
+            <span class="upload-glyph" aria-hidden="true">↑</span>
+            <strong id="file-label">Перетащите аудио сюда</strong>
+            <span id="file-hint">или выберите файл на устройстве</span>
+            <span class="file-types">MP3, WAV, M4A, FLAC, OGG и другие</span>
+          </label>
+          <audio id="audio-preview" controls preload="metadata" hidden aria-label="Прослушать выбранную запись"></audio>
+          </div>
+          <div id="youtube-source" class="youtube-source" role="tabpanel" aria-labelledby="source-youtube-tab" hidden>
+            <label for="youtube-url">Ссылка на видео</label>
+            <input id="youtube-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.youtube.com/watch?v=jNQXAC9IVRw" aria-describedby="youtube-hint" disabled>
+            <p id="youtube-hint">Вставьте ссылку на публичное видео. Сервис скачает аудиодорожку и создаст конспект</p>
+          </div>
+          <div class="upload-actions"><label class="language-field" for="language">Язык записи<select id="language"><option value="ru">Русский</option><option value="en">Английский</option><option value="auto">Определить автоматически</option></select></label><button class="primary-button" id="submit-button" type="submit">Создать конспект</button></div>
+          <p class="upload-note" id="upload-note">Время обработки зависит от длины записи и мощности устройства. Прогресс появится ниже</p>
+        </form>
+      </section>
+      <div id="notice" class="notice" role="alert" hidden></div>
+      <section class="result-card" id="job-panel" aria-labelledby="job-title" hidden>
+        <div class="result-heading"><div><span class="eyebrow">ВАША ЛЕКЦИЯ</span><h2 id="job-title"></h2><p id="job-meta" class="muted"></p></div><span id="status-badge" class="status-badge"></span></div>
+        <div id="progress-panel" class="progress-panel"><div class="progress-label"><span id="stage-label"></span><span id="progress-label"></span></div><progress id="job-progress" max="1" value="0" aria-label="Обработка лекции"></progress><p class="muted">Можете закрыть страницу: обработка продолжится, пока запущен сервис</p></div>
+        <div id="job-error" class="notice" role="alert" hidden></div>
+        <div id="result-content" hidden>
+          <div class="result-toolbar"><div class="tabs" role="tablist" aria-label="Представление результата"><button id="tab-summary" role="tab" aria-selected="true" aria-controls="pane-summary" data-tab="summary" tabindex="0">Конспект</button><button id="tab-transcript" role="tab" aria-selected="false" aria-controls="pane-transcript" data-tab="transcript" tabindex="-1">Расшифровка</button><button id="tab-segments" role="tab" aria-selected="false" aria-controls="pane-segments" data-tab="segments" tabindex="-1">По времени</button><button id="tab-raw" role="tab" aria-selected="false" aria-controls="pane-raw" data-tab="raw" tabindex="-1">Исходный текст</button></div><button class="text-button" id="copy-result">Скопировать</button></div>
+          <div class="result-guidance muted"><p>Конспект создан моделью: проверяйте формулировки и числа по расшифровке</p><p id="cleanup-note" hidden></p></div>
+          <article id="pane-summary" class="result-prose" role="tabpanel" aria-labelledby="tab-summary" tabindex="0"></article>
+          <article id="pane-transcript" class="result-prose transcript" role="tabpanel" aria-labelledby="tab-transcript" tabindex="0" hidden></article>
+          <div id="pane-segments" class="segments" role="tabpanel" aria-labelledby="tab-segments" tabindex="0" hidden></div>
+          <article id="pane-raw" class="result-prose transcript" role="tabpanel" aria-labelledby="tab-raw" tabindex="0" hidden></article>
+          <div class="download-bar"><span>Сохранить результат</span><div><a id="download-md" class="download-link" download>Markdown ↗</a><a id="download-txt" class="download-link" download>TXT ↗</a><a id="download-json" class="download-link" download>JSON ↗</a></div></div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <dialog id="lecture-dialog" class="lecture-dialog" aria-labelledby="lecture-dialog-title" aria-describedby="lecture-dialog-description">
+    <form id="lecture-dialog-form">
+      <h2 id="lecture-dialog-title"></h2>
+      <p id="lecture-dialog-description"></p>
+      <label id="rename-field" class="rename-field" for="lecture-name">Название лекции<input id="lecture-name" name="filename" type="text" autocomplete="off" aria-describedby="lecture-dialog-error"></label>
+      <p id="lecture-dialog-error" class="dialog-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="lecture-dialog-cancel" class="secondary-button" type="button">Отмена</button><button id="lecture-dialog-submit" class="primary-button" type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

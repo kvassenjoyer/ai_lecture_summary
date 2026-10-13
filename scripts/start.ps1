@@ -1,4 +1,4 @@
-param([ValidateRange(1,65535)][int]$Port = 8000, [switch]$OpenBrowser)
+param([ValidateRange(1,65535)][int]$Port = 8080, [switch]$OpenBrowser)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'process_helpers.ps1')

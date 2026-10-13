@@ -1,0 +1,91 @@
+name: lectorium
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql+psycopg://lecture:${POSTGRES_PASSWORD:-lecture_local}@postgres:5432/lectures
+  STORAGE_BACKEND: s3
+  DATA_DIR: /app/data
+  HF_HOME: /app/models
+  MODEL_DEVICE: ${MODEL_DEVICE:-cpu}
+  MODEL_LOCAL_FILES_ONLY: "true"
+  QWEN_LOAD_IN_4BIT: "false"
+  WHISPER_MODEL: openai/whisper-large-v3-turbo
+  QWEN_MODEL: Qwen/Qwen3.5-4B
+  S3_ENDPOINT_URL: http://objectstore:9000
+  S3_BUCKET: lectures
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-lecture_minio}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-lecture_minio_local_secret}
+  S3_REGION: us-east-1
+  MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-500}
+  MAX_AUDIO_SECONDS: ${MAX_AUDIO_SECONDS:-14400}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lectures
+      POSTGRES_USER: lecture
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lecture_local}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lecture -d lectures"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  objectstore:
+    image: rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+    command: ["/data"]
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-lecture_minio}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-lecture_minio_local_secret}
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - objectstore-data:/data
+
+  api:
+    build: .
+    image: lectorium:local
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - api-data:/app/data
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      objectstore:
+        condition: service_started
+
+  worker:
+    build: .
+    image: lectorium:local
+    command: ["python", "-m", "lecture_service.worker"]
+    restart: unless-stopped
+    environment: *app-environment
+    volumes:
+      - worker-data:/app/data
+      - ./models:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      objectstore:
+        condition: service_started
+    healthcheck:
+      disable: true
+    stop_grace_period: 60s
+
+volumes:
+  postgres-data:
+  objectstore-data:
+  api-data:
+  worker-data:

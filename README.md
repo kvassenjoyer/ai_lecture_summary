@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1 -OpenBro
 - Интерфейс: [http://127.0.0.1:8080](http://127.0.0.1:8080).
 - Документация API: [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs).
 
-## Повторный запуск
+## Повторный запуск на Windows
 
 Откройте PowerShell в папке проекта и выполните:
 
@@ -70,6 +70,44 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1 -OpenBro
 ```
 
 Если сервис уже работает, достаточно открыть страницу. Для перезапуска сначала выполните команду остановки ниже.
+
+## Запуск через Docker на Linux и macOS
+
+Нужны Git, Docker Engine с Compose v2 на Linux или Docker Desktop на macOS. Python, FFmpeg и Node.js устанавливаются внутри образа. Команды ниже выполняются в Bash/Zsh; если проект уже скачан, начните из его корневой папки.
+
+**1. Скачайте проект и соберите образ:**
+
+```bash
+git clone https://github.com/kvassenjoyer/ai_lecture_summary.git
+cd ai_lecture_summary
+docker compose build
+```
+
+Для новой установки `.env` не обязателен: Compose уже содержит настройки PostgreSQL и RustFS. Если используете существующий `.env`, задайте в нём `MODEL_DEVICE=cpu` или `auto` для текущего образа. Сборка требует интернета и скачивает зависимости; при последующих запусках готовый образ используется повторно.
+
+**2. Скачайте модели через одноразовый контейнер:**
+
+```bash
+mkdir -p models
+docker compose run --rm --no-deps \
+  --user "$(id -u):$(id -g)" \
+  --volume ./models:/app/models:rw \
+  api python scripts/download_models.py --cache-root /app/models --verify-hashes
+```
+
+Дождитесь сообщений `Ready` для обеих моделей. Веса и манифест сохраняются в папке `models` на компьютере; при обычной работе контейнеры читают её без права записи. Если модели уже скачаны этим проектом, повторять этот шаг не нужно.
+
+**3. Запустите все сервисы:**
+
+```bash
+docker compose up -d --wait
+```
+
+Откройте [http://127.0.0.1:8080](http://127.0.0.1:8080). Compose запускает API, worker, PostgreSQL и RustFS. Используются порты `8080`, `5433`, `9000` и `9001`. История и аудио сохраняются в Docker-томах; существующая локальная SQLite-база автоматически в них не переносится.
+
+Повторный запуск - `docker compose up -d --wait`. Остановка с сохранением данных - `docker compose stop`. Журнал обработки - `docker compose logs -f worker`. После изменения исходного кода пересоберите образ: `docker compose up -d --build --wait`.
+
+**Ограничения:** текущий образ содержит CPU-сборку PyTorch и не использует NVIDIA CUDA или Apple Metal. Установленный на компьютере PyTorch не влияет на контейнер. Обработка будет медленнее, чем на GPU; рекомендуется от 24 ГБ RAM, доступных Docker. Веса занимают около 11 ГБ, временные части скачивания - ещё примерно 11 ГБ; место для образов, зависимостей и аудио нужно дополнительно. Полный цикл обработки на CPU и запуск на macOS пока не проверены. Для GPU потребуются отдельная настройка образа и подключение видеокарты.
 
 ## Работа с интерфейсом
 
@@ -80,7 +118,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start.ps1 -OpenBro
 
 При ошибке задача остаётся в истории с сообщением. Подробности находятся в журнале worker. Отдельной кнопки повторного запуска нет: источник можно отправить заново.
 
-## Остановка
+## Остановка на Windows
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\stop.ps1
